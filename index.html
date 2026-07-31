@@ -257,7 +257,10 @@
     } catch (e) {
       await sb.auth.signOut();
       arataLogin();
-      arataMesaj($('login-msg'), 'Acest cont nu are acces la panoul de admin.', 'err');
+      // Temporar: arătăm mesajul TEHNIC real (nu doar "neautorizat" generic),
+      // ca să diagnosticăm rapid o eroare care apare doar pe un device —
+      // de scos înapoi la textul simplu odată ce e clar.
+      arataMesaj($('login-msg'), 'Eroare reală: ' + (e && e.message ? e.message : String(e)), 'err');
       return;
     }
 
