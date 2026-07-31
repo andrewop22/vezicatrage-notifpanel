@@ -69,6 +69,10 @@
   .hidden { display: none !important; }
   .center { text-align: center; }
   .spinner-text { color: var(--text-muted); font-size: 13px; }
+  .upload-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .upload-row input[type="file"] { flex: 1; font-size: 12px; padding: 6px; }
+  .upload-preview { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); display: none; }
+  .upload-preview.vizibil { display: block; }
 </style>
 </head>
 <body>
@@ -127,6 +131,11 @@
         <textarea id="banner-text"></textarea>
         <label for="banner-imagine">URL imagine (opțional)</label>
         <input id="banner-imagine" type="url" placeholder="https://...">
+        <div class="upload-row">
+          <input id="banner-fisier" type="file" accept="image/jpeg,image/png,image/webp">
+          <img id="banner-preview" class="upload-preview" alt="">
+        </div>
+        <div id="upload-msg"></div>
         <label for="banner-link">URL link (opțional)</label>
         <input id="banner-link" type="url" placeholder="https://...">
         <label for="banner-expirare">Expiră la (opțional)</label>
@@ -156,6 +165,7 @@
 
   const FN_PUSH = SUPABASE_URL + '/functions/v1/push-broadcast';
   const FN_BANNER = SUPABASE_URL + '/functions/v1/admin-banner';
+  const FN_UPLOAD = SUPABASE_URL + '/functions/v1/admin-upload-url';
 
   const $ = (id) => document.getElementById(id);
 
@@ -259,6 +269,51 @@
     $('btn-push').disabled = false;
   });
 
+  // ── Banner: încărcare imagine în R2 ────────────────────────────────────
+  const TIPURI_ACCEPTATE = ['image/jpeg', 'image/png', 'image/webp'];
+  const MARIME_MAXIMA = 5 * 1024 * 1024;
+
+  $('banner-fisier').addEventListener('change', async (e) => {
+    const fisier = e.target.files[0];
+    if (!fisier) return;
+
+    if (!TIPURI_ACCEPTATE.includes(fisier.type)) {
+      arataMesaj($('upload-msg'), 'Doar imagini JPG, PNG sau WEBP.', 'err');
+      e.target.value = '';
+      return;
+    }
+    if (fisier.size > MARIME_MAXIMA) {
+      arataMesaj($('upload-msg'), 'Imagine prea mare (max 5 MB).', 'err');
+      e.target.value = '';
+      return;
+    }
+
+    curataMesaj($('upload-msg'));
+    arataMesaj($('upload-msg'), 'Se încarcă...', 'ok');
+    $('banner-fisier').disabled = true;
+
+    try {
+      // 1. Cerem o adresă presemnată de upload, doar pentru acest fișier.
+      const r = await apelFunctie(FN_UPLOAD, { contentType: fisier.type, dimensiune: fisier.size });
+      // 2. Trimitem fișierul DIRECT în R2 — nu prin edge function (nu trece
+      // prin Supabase, doar prin URL-ul presemnat, valid 5 minute).
+      const rezultatPut = await fetch(r.uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': fisier.type },
+        body: fisier,
+      });
+      if (!rezultatPut.ok) throw new Error('Încărcarea către stocare a eșuat.');
+
+      $('banner-imagine').value = r.urlPublic;
+      $('banner-preview').src = r.urlPublic;
+      $('banner-preview').classList.add('vizibil');
+      arataMesaj($('upload-msg'), 'Imagine încărcată.', 'ok');
+    } catch (err) {
+      arataMesaj($('upload-msg'), err.message, 'err');
+    }
+    $('banner-fisier').disabled = false;
+  });
+
   // ── Banner: creare ─────────────────────────────────────────────────────
   $('btn-banner-creeaza').addEventListener('click', async () => {
     const titlu = $('banner-titlu').value.trim();
@@ -276,7 +331,9 @@
         data_expirare: expirare,
       });
       arataMesaj($('banner-msg'), 'Anunț publicat — apare instant în aplicație.', 'ok');
-      ['banner-titlu', 'banner-text', 'banner-imagine', 'banner-link', 'banner-expirare'].forEach((id) => $(id).value = '');
+      ['banner-titlu', 'banner-text', 'banner-imagine', 'banner-link', 'banner-expirare', 'banner-fisier'].forEach((id) => $(id).value = '');
+      $('banner-preview').classList.remove('vizibil');
+      curataMesaj($('upload-msg'));
       incarcaListaPromotii();
     } catch (e) {
       arataMesaj($('banner-msg'), e.message, 'err');
