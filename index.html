@@ -66,6 +66,7 @@
   .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px; margin-left: 6px; }
   .badge.activ { background: rgba(47,191,113,0.15); color: var(--ok); }
   .badge.inactiv { background: rgba(255,255,255,0.08); color: var(--text-muted); }
+  .badge.programat { background: rgba(77,184,255,0.15); color: #4db8ff; }
   .hidden { display: none !important; }
   .center { text-align: center; }
   .spinner-text { color: var(--text-muted); font-size: 13px; }
@@ -170,6 +171,9 @@
         <div id="upload-msg"></div>
         <label for="banner-link">URL link (opțional)</label>
         <input id="banner-link" type="url" placeholder="https://...">
+        <label for="banner-inceput">Pornește la (Schedule Postare) — opțional</label>
+        <input id="banner-inceput" type="datetime-local">
+        <div class="sub" style="margin:4px 0 0">Dacă lași gol, apare imediat. Programat, apare automat la data aleasă — nu instant, ci la următoarea deschidere a aplicației sau în max. 5 min, dacă e deja deschisă.</div>
         <label for="banner-expirare">Expiră la (opțional)</label>
         <input id="banner-expirare" type="datetime-local">
         <button id="btn-banner-creeaza" style="width:100%">Publică anunțul</button>
@@ -431,17 +435,22 @@
     $('btn-banner-creeaza').disabled = true;
     curataMesaj($('banner-msg'));
     try {
+      const inceput = $('banner-inceput').value ? new Date($('banner-inceput').value).toISOString() : null;
       const expirare = $('banner-expirare').value ? new Date($('banner-expirare').value).toISOString() : null;
+      if (inceput && expirare && inceput >= expirare) {
+        throw new Error('Data de start trebuie să fie înainte de data de expirare.');
+      }
       await apelFunctie(FN_BANNER, {
         actiune: 'creeaza',
         titlu,
         text: $('banner-text').value.trim(),
         imagine_url: $('banner-imagine').value.trim(),
         link_url: $('banner-link').value.trim(),
+        data_inceput: inceput,
         data_expirare: expirare,
       });
-      arataMesaj($('banner-msg'), 'Anunț publicat — apare instant în aplicație.', 'ok');
-      ['banner-titlu', 'banner-text', 'banner-imagine', 'banner-link', 'banner-expirare', 'banner-fisier'].forEach((id) => $(id).value = '');
+      arataMesaj($('banner-msg'), inceput ? 'Anunț programat — apare automat la data aleasă.' : 'Anunț publicat — apare instant în aplicație.', 'ok');
+      ['banner-titlu', 'banner-text', 'banner-imagine', 'banner-link', 'banner-inceput', 'banner-expirare', 'banner-fisier'].forEach((id) => $(id).value = '');
       $('banner-preview').classList.remove('vizibil');
       curataMesaj($('upload-msg'));
       actualizeazaContor('banner-titlu', 'counter-titlu', 80);
@@ -472,12 +481,13 @@
       }
       cont.innerHTML = r.promotii.map((p) => {
         const expirata = p.data_expirare && new Date(p.data_expirare) < new Date();
-        const stare = !p.activ ? 'inactiv' : expirata ? 'inactiv' : 'activ';
-        const eticheta = !p.activ ? 'Dezactivat' : expirata ? 'Expirat' : 'Activ';
+        const programata = p.data_inceput && new Date(p.data_inceput) > new Date();
+        const stare = !p.activ ? 'inactiv' : expirata ? 'inactiv' : programata ? 'programat' : 'activ';
+        const eticheta = !p.activ ? 'Dezactivat' : expirata ? 'Expirat' : programata ? 'Programat' : 'Activ';
         return `
           <div class="promo-item">
             <div class="promo-titlu">${escapeHtml(p.titlu)} <span class="badge ${stare}">${eticheta}</span></div>
-            <div class="promo-meta">${formateazaData(p.created_at)}${p.data_expirare ? ' · expiră ' + formateazaData(p.data_expirare) : ''} · trimis de ${p.trimitere_nr} ${p.trimitere_nr === 1 ? 'oară' : 'ori'}</div>
+            <div class="promo-meta">${formateazaData(p.created_at)}${programata ? ' · pornește ' + formateazaData(p.data_inceput) : ''}${p.data_expirare ? ' · expiră ' + formateazaData(p.data_expirare) : ''} · trimis de ${p.trimitere_nr} ${p.trimitere_nr === 1 ? 'oară' : 'ori'}</div>
             <div class="row">
               <button class="secondary" data-retrimite="${p.id}">Retrimite</button>
               <button class="danger" data-dezactiveaza="${p.id}" ${!p.activ ? 'disabled' : ''}>Dezactivează</button>
