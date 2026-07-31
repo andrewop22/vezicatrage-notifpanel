@@ -73,6 +73,35 @@
   .upload-row input[type="file"] { flex: 1; font-size: 12px; padding: 6px; }
   .upload-preview { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); display: none; }
   .upload-preview.vizibil { display: block; }
+  .counter { font-size: 11px; color: var(--text-muted); text-align: right; margin-top: 4px; }
+  .counter.peste { color: var(--danger); }
+  .warn-inline { font-size: 12px; color: var(--danger); margin-top: 6px; }
+
+  /* Preview — mockup de telefon, randat din aceleași date din formular */
+  .phone {
+    width: 220px; height: 460px; margin: 4px auto 0; padding: 10px;
+    background: #000; border-radius: 32px; border: 3px solid #2a2a2a;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .phone-screen {
+    width: 100%; height: 100%; border-radius: 22px; overflow: hidden;
+    background: var(--bg); position: relative;
+  }
+  .phone-overlay {
+    position: absolute; inset: 0; background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center; padding: 14px;
+  }
+  .phone-card {
+    width: 100%; background: #0d2744; border-radius: 16px; border: 0.5px solid rgba(255,255,255,0.08);
+    padding: 12px; position: relative;
+  }
+  .phone-card img { width: 100%; height: 90px; object-fit: contain; border-radius: 10px; background: #071626; margin-bottom: 10px; display: none; }
+  .phone-card img.vizibil { display: block; }
+  .phone-titlu { color: #e2f0ff; font-size: 13px; font-weight: 700; text-align: center; }
+  .phone-text { color: #6a9bbf; font-size: 11px; text-align: center; margin-top: 6px; line-height: 15px; }
+  .phone-link { color: #4db8ff; font-size: 11px; font-weight: 600; text-align: center; margin-top: 10px; text-decoration: underline; }
+  .phone-x { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; border-radius: 10px; background: rgba(0,0,0,0.45); color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center; }
+  .phone-gol { color: var(--text-muted); font-size: 12px; text-align: center; }
 </style>
 </head>
 <body>
@@ -126,11 +155,14 @@
       <div class="card">
         <div class="sub" style="margin-bottom:0">Anunț nou</div>
         <label for="banner-titlu">Titlu *</label>
-        <input id="banner-titlu" type="text">
+        <input id="banner-titlu" type="text" maxlength="80">
+        <div class="counter" id="counter-titlu">0 / 80</div>
         <label for="banner-text">Text</label>
-        <textarea id="banner-text"></textarea>
+        <textarea id="banner-text" maxlength="300"></textarea>
+        <div class="counter" id="counter-text">0 / 300</div>
         <label for="banner-imagine">URL imagine (opțional)</label>
         <input id="banner-imagine" type="url" placeholder="https://...">
+        <div id="imagine-warn"></div>
         <div class="upload-row">
           <input id="banner-fisier" type="file" accept="image/jpeg,image/png,image/webp">
           <img id="banner-preview" class="upload-preview" alt="">
@@ -142,6 +174,23 @@
         <input id="banner-expirare" type="datetime-local">
         <button id="btn-banner-creeaza" style="width:100%">Publică anunțul</button>
         <div id="banner-msg"></div>
+      </div>
+
+      <div class="card">
+        <div class="sub" style="margin-bottom:10px; text-align:center">Previzualizare — exact cum apare în aplicație</div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-overlay">
+              <div class="phone-card" id="preview-card">
+                <div class="phone-x">✕</div>
+                <img id="preview-img" alt="">
+                <div class="phone-titlu" id="preview-titlu">Titlul anunțului</div>
+                <div class="phone-text" id="preview-text"></div>
+                <div class="phone-link hidden" id="preview-link">Click aici pentru detalii</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="card">
@@ -307,6 +356,7 @@
       $('banner-imagine').value = r.urlPublic;
       $('banner-preview').src = r.urlPublic;
       $('banner-preview').classList.add('vizibil');
+      actualizeazaPreview();
       arataMesaj($('upload-msg'), 'Imagine încărcată.', 'ok');
     } catch (err) {
       arataMesaj($('upload-msg'), err.message, 'err');
@@ -314,10 +364,70 @@
     $('banner-fisier').disabled = false;
   });
 
+  // ── Banner: previzualizare live + validare ─────────────────────────────
+  // Totul e citit din câmpurile pe care oricum le-am citit la trimitere —
+  // niciun request suplimentar, doar UI, actualizat pe măsură ce tastezi.
+  let imagineInvalida = false;
+
+  function actualizeazaContor(inputId, counterId, limita) {
+    const lungime = $(inputId).value.length;
+    const el = $(counterId);
+    el.textContent = `${lungime} / ${limita}`;
+    el.classList.toggle('peste', lungime >= limita);
+  }
+
+  function actualizeazaPreview() {
+    const titlu = $('banner-titlu').value.trim();
+    const text = $('banner-text').value.trim();
+    const imagine = $('banner-imagine').value.trim();
+    const link = $('banner-link').value.trim();
+
+    $('preview-titlu').textContent = titlu || 'Titlul anunțului';
+    $('preview-text').textContent = text;
+    $('preview-text').classList.toggle('hidden', !text);
+    $('preview-link').classList.toggle('hidden', !link);
+
+    const img = $('preview-img');
+    if (imagine) {
+      img.src = imagine;
+      img.classList.add('vizibil');
+    } else {
+      img.removeAttribute('src');
+      img.classList.remove('vizibil');
+      imagineInvalida = false;
+      curataMesaj($('imagine-warn'));
+    }
+  }
+
+  $('preview-img').addEventListener('error', () => {
+    if (!$('banner-imagine').value.trim()) return;
+    imagineInvalida = true;
+    arataMesaj($('imagine-warn'), 'Acest URL nu pare să fie o imagine validă.', 'err');
+  });
+  $('preview-img').addEventListener('load', () => {
+    imagineInvalida = false;
+    curataMesaj($('imagine-warn'));
+  });
+
+  ['banner-titlu', 'banner-text', 'banner-imagine', 'banner-link'].forEach((id) => {
+    $(id).addEventListener('input', actualizeazaPreview);
+  });
+  $('banner-titlu').addEventListener('input', () => actualizeazaContor('banner-titlu', 'counter-titlu', 80));
+  $('banner-text').addEventListener('input', () => actualizeazaContor('banner-text', 'counter-text', 300));
+
+  function linkValid(url) {
+    if (!url) return true;
+    try { const u = new URL(url); return u.protocol === 'http:' || u.protocol === 'https:'; }
+    catch { return false; }
+  }
+
   // ── Banner: creare ─────────────────────────────────────────────────────
   $('btn-banner-creeaza').addEventListener('click', async () => {
     const titlu = $('banner-titlu').value.trim();
+    const link = $('banner-link').value.trim();
     if (!titlu) { arataMesaj($('banner-msg'), 'Titlul e obligatoriu.', 'err'); return; }
+    if (!linkValid(link)) { arataMesaj($('banner-msg'), 'URL-ul de link nu e valid (trebuie să înceapă cu http:// sau https://).', 'err'); return; }
+    if (imagineInvalida) { arataMesaj($('banner-msg'), 'Verifică URL-ul imaginii — nu se încarcă (vezi previzualizarea).', 'err'); return; }
     $('btn-banner-creeaza').disabled = true;
     curataMesaj($('banner-msg'));
     try {
@@ -334,6 +444,9 @@
       ['banner-titlu', 'banner-text', 'banner-imagine', 'banner-link', 'banner-expirare', 'banner-fisier'].forEach((id) => $(id).value = '');
       $('banner-preview').classList.remove('vizibil');
       curataMesaj($('upload-msg'));
+      actualizeazaContor('banner-titlu', 'counter-titlu', 80);
+      actualizeazaContor('banner-text', 'counter-text', 300);
+      actualizeazaPreview();
       incarcaListaPromotii();
     } catch (e) {
       arataMesaj($('banner-msg'), e.message, 'err');
