@@ -77,6 +77,13 @@
   .counter { font-size: 11px; color: var(--text-muted); text-align: right; margin-top: 4px; }
   .counter.peste { color: var(--danger); }
   .warn-inline { font-size: 12px; color: var(--danger); margin-top: 6px; }
+  /* Avertisment permanent în tabul de anunțuri — vezi comentariul din HTML. */
+  .avertisment-magazine {
+    background: rgba(249,109,22,0.10); border: 1px solid var(--accent);
+    border-radius: 10px; padding: 12px 14px; margin-bottom: 16px;
+    font-size: 13px; line-height: 1.5;
+  }
+  .avertisment-magazine strong { color: var(--accent); }
 
   /* Preview — mockup de telefon, randat din aceleași date din formular */
   .phone {
@@ -153,6 +160,27 @@
 
     <!-- TAB BANNER -->
     <div id="tab-banner" class="hidden">
+      <!--
+        Avertisment adăugat 2026-08-05. Declarația din magazine spune că
+        aplicația NU conține reclame — corect cât timp anunțurile sunt proprii
+        (funcții noi, mesaje către comunitate). În momentul în care un brand
+        plătește pentru un banner, devine reclamă, iar declarația devine
+        falsă. La Google, o declarație falsă nu înseamnă respingere, ci
+        SUSPENDARE. Avertismentul stă aici, nu într-un document, fiindcă ăsta
+        e singurul loc prin care trece obligatoriu cine publică un anunț.
+      -->
+      <div class="avertisment-magazine">
+        <strong>Înainte de a publica un anunț plătit de un brand:</strong>
+        aplicația e declarată în Google Play și App Store ca fiind
+        <strong>fără reclame</strong>. Un banner pentru care cineva te
+        plătește este reclamă. Schimbă declarația în ambele magazine
+        <em>înainte</em> de a-l publica — Google suspendă aplicațiile cu
+        declarații false, nu doar le respinge.
+        <br><br>
+        Anunțurile proprii (funcții noi, mesaje către comunitate, informări)
+        nu sunt reclame și nu cer nicio schimbare.
+      </div>
+
       <div class="card">
         <div class="sub" style="margin-bottom:0">Anunț nou</div>
         <label for="banner-titlu">Titlu *</label>
